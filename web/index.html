@@ -1,0 +1,73 @@
+<!doctype html>
+<html class="no-js" lang="">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>Top 2000 Spotify playlist</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="manifest" href="site.webmanifest">
+        <link rel="apple-touch-icon" href="icon.png">
+        <!-- Place favicon.ico in the root directory -->
+
+        <link rel="stylesheet" href="css/normalize.css">
+        <link rel="stylesheet" href="css/main.css">
+    </head>
+    <body>
+        <!--[if lte IE 9]>
+            <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
+        <![endif]-->
+	
+		<script src="//unpkg.com/mithril/mithril.js"></script>
+	    <script>
+	    var root = document.body
+
+	    var state = {
+	        authorized: 0,
+	    }
+
+	    var Component = {
+	        view: function() {
+	            return m("div", [
+			    	m("form", {
+			    		onsubmit: handleSubmit,
+			    	}, [
+				    	m("div", [
+				    		state.authorized ? "" : m("a", { href: "/login" }, "Login with Spotify")
+				    	]),
+				    	m("div", [
+				    		m("input", {
+				    			placeholder: "Link naar je Top 2000 lijstje...",
+				    			required: true
+				    		})
+				    	]),
+				    	m("div", [
+				    		m("button", "Let's go")
+				    	])
+			    	]) // end form
+			    ])
+	        }
+	    }
+
+	    m.request({
+	    	method: "GET",
+	    	url: "/api/me",
+	    }).then(function(data) {
+	    	state.authorized = data;
+	    })
+
+	    function handleSubmit() {
+	    	alert("going!");
+	    }
+
+	    m.mount(root, Component);
+
+
+	    </script>
+
+	    <!--
+	    	<iframe src="https://open.spotify.com/embed?uri=spotify%3Auser%3Aspotify%3Aplaylist%3A2PXdUld4Ueio2pHcB6sM8j" width="300" height="380" frameborder="0" allowtransparency="true"></iframe>
+	    -->
+</body>
+</html>
