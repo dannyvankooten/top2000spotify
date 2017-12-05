@@ -25,6 +25,7 @@
 
 	    var state = {
 	        authorized: 0,
+	        url: "",
 	    }
 
 	    var Component = {
@@ -39,7 +40,9 @@
 				    	m("div", [
 				    		m("input", {
 				    			placeholder: "Link naar je Top 2000 lijstje...",
-				    			required: true
+				    			required: true,
+				    			value: state.url,
+				    			onchange: function(e) { state.url = e.target.value; }
 				    		})
 				    	]),
 				    	m("div", [
@@ -53,12 +56,22 @@
 	    m.request({
 	    	method: "GET",
 	    	url: "/api/me",
+	    	withCredentials: true,
 	    }).then(function(data) {
 	    	state.authorized = data;
 	    })
 
-	    function handleSubmit() {
-	    	alert("going!");
+	    function handleSubmit(e) {
+	    	e.preventDefault();
+
+	    	m.request({
+		    	method: "POST",
+		    	url: "/api/create-playlist",
+		    	data: { url: state.url },
+		    	withCredentials: true,
+		    }).then(function(data) {
+		    	console.log(data);
+		    })
 	    }
 
 	    m.mount(root, Component);
