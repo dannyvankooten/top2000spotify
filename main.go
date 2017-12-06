@@ -109,6 +109,13 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// write lijstje URL to file so we can do stuff later
+	f, err := os.OpenFile("lijstjes.dat", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err == nil {
+		f.WriteString(data.URL)
+	}
+	f.Close()
+
 	// get client
 	client := getAuthenticatedClient(r)
 	if err != nil {
