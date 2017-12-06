@@ -139,6 +139,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := client.CurrentUser()
 	if err != nil {
+		log.Println(err)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "Je Spotify account wil niet echt meewerken...",
 		})
@@ -150,6 +151,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	name = strings.TrimPrefix(name, "De NPO Radio 2 ") + " (2017)"
 	playlist, err := client.CreatePlaylistForUser(user.ID, name, true)
 	if err != nil {
+		log.Println(err)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "Het lukt niet echt om de playlist te maken.",
 		})
@@ -237,6 +239,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 	sess.Values["accessToken"] = ""
 	err := sess.Save(r, w)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "Er gaat iets gruwelijk mis en het is mijn schuld.", http.StatusInternalServerError)
 	}
 	http.Redirect(w, r, "/", 302)
@@ -247,6 +250,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request) {
 
 	token, err := auth.Token(sess.ID, r)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "Ik heb toestemming nodig", http.StatusUnauthorized)
 		w.Write([]byte("Ik heb wel toestemming nodig om de playlist in je Spotify account te maken..."))
 		return
@@ -257,6 +261,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request) {
 	sess.Values["accessToken"] = token.AccessToken
 	err = sess.Save(r, w)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "Er gaat iets gruwelijk mis en het is mijn schuld.", http.StatusInternalServerError)
 		return
 	}
