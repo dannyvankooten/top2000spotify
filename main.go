@@ -2,33 +2,27 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gorilla/sessions"
-	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv/autoload"
 	"github.com/xrash/smetrics"
 	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
 )
 
-const redirectURI = "http://localhost:8080/callback"
 const sessionName = "t2s"
 
 var (
-	auth  = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate, spotify.ScopePlaylistModifyPublic)
-	store = sessions.NewCookieStore([]byte("map[interface{}]interface{}"))
+	redirectURI = os.Getenv("APP_URL") + "/callback"
+	auth        = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate, spotify.ScopePlaylistModifyPublic)
+	store       = sessions.NewCookieStore([]byte("map[interface{}]interface{}"))
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
 	auth.SetAuthInfo(os.Getenv("SPOTIFY_ID"), os.Getenv("SPOTIFY_SECRET"))
 
 	http.HandleFunc("/login", handleLogin)
@@ -36,7 +30,7 @@ func main() {
 	http.HandleFunc("/api/me", handlePing)
 	http.HandleFunc("/api/create-playlist", handleCreatePlaylist)
 	http.Handle("/", http.FileServer(http.Dir("./web")))
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":9005", nil)
 }
 
 func getAuthenticatedClient(r *http.Request) spotify.Client {
@@ -112,7 +106,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	// write lijstje URL to file so we can do stuff later
 	f, err := os.OpenFile("lijstjes.dat", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err == nil {
-		f.WriteString(data.URL)
+		f.WriteString(data.URL + "\n")
 	}
 	f.Close()
 

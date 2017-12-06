@@ -4,15 +4,13 @@
         <meta charset="utf-8">
         <meta http-equiv="x-ua-compatible" content="ie=edge">
         <title>Top 2000 Spotify playlist</title>
-        <meta name="description" content="">
+        <meta name="description" content="Maak een Spotify playlist van jouw Top 2000 lijstje. Of die van iemand anders.">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-
         <link rel="manifest" href="site.webmanifest">
-        <link rel="apple-touch-icon" href="icon.png">
         <!-- Place favicon.ico in the root directory -->
-
-        <link rel="stylesheet" href="css/normalize.css">
-        <link rel="stylesheet" href="css/main.css">
+		
+        <link rel="stylesheet" href="/css/normalize.css">
+        <link rel="stylesheet" href="/css/main.css">
     </head>
     <body>
         <!--[if lte IE 9]>
@@ -26,6 +24,7 @@
 		<script src="//unpkg.com/mithril/mithril.js"></script>
 	    <script>
 	    var root = document.getElementById('root');
+	    var baseURL = "";
 
 	    var state = {
 	        user: false,
@@ -41,11 +40,11 @@
 	            	m('div.app-header', [
 	            		m("img", { 
 	            			height: 40,
-		            		src: "img/top2000-logo.png",
+		            		src: url( "img/top2000-logo.png" ),
 		            	}),
 		            	m("img", { 
 		            		height: 40,
-		            		src: "img/spotify-logo.png",
+		            		src: url( "img/spotify-logo.png" ),
 		            	}),
 	            	]),
 	            	m("h3", "Maak een Spotify playlist van jouw Top 2000 lijstje."),
@@ -55,7 +54,7 @@
 				    	m("div.medium-margin", [
 				    		state.user ? 
 				    		 m("span", [ "Verbonden met de Spotify van ", m("strong", state.user.name ), "." ])
-				    		 : m("a", { href: "/login" }, "Login met je Spotify account")
+				    		 : m("a", { href: url("/login") }, "Login met je Spotify account")
 				    	]),
 				    	m("div.medium-margin", [
 				    		m("input", {
@@ -89,11 +88,15 @@
 
 	    m.request({
 	    	method: "GET",
-	    	url: "/api/me",
+	    	url: url("/api/me" ),
 	    	withCredentials: true,
 	    }).then(function(data) {
 	    	state.user = data;
 	    })
+
+	    function url(s) {
+	    	return baseURL + s;
+	    }
 
 	    function handleInputChange(e) {
 	    	state.error = "";
@@ -120,7 +123,7 @@
 
 	    	m.request({
 		    	method: "POST",
-		    	url: "/api/create-playlist",
+		    	url: url("/api/create-playlist"),
 		    	data: { url: state.url },
 		    	withCredentials: true,
 		    }).then(function(data) {
