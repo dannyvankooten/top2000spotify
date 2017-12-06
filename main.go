@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -23,6 +25,14 @@ var (
 )
 
 func main() {
+	f, err := os.OpenFile("errors.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	log.SetOutput(f)
+
+	store.Options.MaxAge = 3200 // little less than 1 hour
 	auth.SetAuthInfo(os.Getenv("SPOTIFY_ID"), os.Getenv("SPOTIFY_SECRET"))
 
 	http.HandleFunc("/login", handleLogin)
@@ -30,30 +40,37 @@ func main() {
 	http.HandleFunc("/callback", handleAuth)
 	http.HandleFunc("/api/me", handlePing)
 	http.HandleFunc("/api/create-playlist", handleCreatePlaylist)
-	http.Handle("/", http.FileServer(http.Dir("./web")))
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web"))))
+	http.HandleFunc("/", handleHome)
 	http.ListenAndServe(":9005", nil)
 }
 
-func getAuthenticatedClient(r *http.Request) spotify.Client {
+func handleHome(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "web/index.html")
+}
+
+func getAuthenticatedClient(r *http.Request) (spotify.Client, error) {
 	sess, _ := store.Get(r, sessionName)
+	if v, ok := sess.Values["accessToken"]; !ok || sess.IsNew || v.(string) == "" {
+		return spotify.Client{}, errors.New("session is not authenticated with spotify")
+	}
+
 	token := &oauth2.Token{
 		AccessToken: sess.Values["accessToken"].(string),
 	}
 	client := auth.NewClient(token)
-	return client
+	return client, nil
 }
 
 func handlePing(w http.ResponseWriter, r *http.Request) {
-	sess, _ := store.Get(r, sessionName)
-
 	w.Header().Set("Content-Type", "application/json")
-	if _, ok := sess.Values["accessToken"]; !ok || sess.Values["accessToken"].(string) == "" {
+
+	// get current user
+	client, err := getAuthenticatedClient(r)
+	if err != nil {
 		w.Write([]byte("false"))
 		return
 	}
-
-	// get current user
-	client := getAuthenticatedClient(r)
 	user, err := client.CurrentUser()
 	if err != nil {
 		w.Write([]byte("false"))
@@ -80,7 +97,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if data.URL == "" {
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Dat lijstje lijkt nergens op! (Of dat lijkt nergens op 'n lijstje, sorry..)",
+			"error": "Dat lijstje lijkt nergens op! Of dat lijkt nergens op 'n lijstje..",
 		})
 		return
 	}
@@ -88,18 +105,18 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	doc, err := goquery.NewDocument(data.URL)
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Dat lijstje lijkt nergens op! (Of dat lijkt nergens op 'n lijstje, sorry..)",
+			"error": "Dat lijstje lijkt nergens op! Of dat lijkt nergens op 'n lijstje..",
 		})
 		return
 	}
 
-	// TODO: Validate playlist (again?)
+	// Validate playlist
 	heading := doc.Find(".socials-like h1")
 	listItems := doc.Find(".yourlist li")
 
 	if heading.Length() == 0 || listItems.Length() == 0 {
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Dat lijstje lijkt nergens op! (Of dat lijkt nergens op 'n lijstje, sorry..)",
+			"error": "Dat lijstje lijkt nergens op! Of dat lijkt nergens op 'n lijstje..",
 		})
 		return
 	}
@@ -112,7 +129,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	f.Close()
 
 	// get client
-	client := getAuthenticatedClient(r)
+	client, err := getAuthenticatedClient(r)
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "Je Spotify account wil niet echt meewerken...",
@@ -144,19 +161,16 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 		artist := s.Find("h2").Text()
 		title := s.Find("h3").Text()
 
-		result, err := client.Search(artist+" "+title, spotify.SearchTypeTrack)
-		if err != nil {
-			return // rate limited?
+		// lowercase track title
+		ID := searchForTrackID(client, artist, title, artist+" "+title)
+		if ID == "" {
+			ID = searchForTrackID(client, artist, title, artist+" "+title[0:(len(title)/2)])
 		}
 
-		// lowercase track title
-		title = strings.ToLower(title)
-		for _, track := range result.Tracks.Tracks {
-			track.Name = strings.ToLower(track.Name)
-			if (strings.HasPrefix(track.Name, title) && !strings.Contains(track.Name, "instrumental")) || smetrics.WagnerFischer(title, track.Name, 1, 1, 2) < 5 {
-				tracks = append(tracks, track.ID)
-				break
-			}
+		if ID != spotify.ID("") {
+			tracks = append(tracks, ID)
+		} else {
+			log.Printf("failed matching %s %s\n", artist, title)
 		}
 	})
 
@@ -167,17 +181,64 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func searchForTrackID(client spotify.Client, artist string, title string, q string) spotify.ID {
+	result, err := client.Search(q, spotify.SearchTypeTrack)
+	if err != nil {
+		log.Println(err)
+		return spotify.ID("")
+	}
+
+	title = strings.ToLower(title)
+	artist = strings.ToLower(artist)
+
+	for _, t := range result.Tracks.Tracks {
+		trackMatched := false
+		artistMatched := false
+
+		// NORMALIZE TRACK
+		t.Name = strings.ToLower(t.Name)
+		t.Name = strings.TrimSuffix(t.Name, "remastered")
+		t.Name = strings.TrimSpace(t.Name)
+		t.Name = strings.TrimSuffix(t.Name, "-")
+		t.Name = strings.TrimSpace(t.Name)
+
+		// compare track name
+		if smetrics.WagnerFischer(title, t.Name, 1, 1, 2) <= 5 {
+			trackMatched = true
+		}
+
+		// compare each track artist
+		for _, a := range t.Artists {
+			a.Name = strings.ToLower(a.Name)
+			if smetrics.WagnerFischer(artist, a.Name, 1, 1, 2) <= 5 {
+				artistMatched = true
+				break
+			}
+		}
+
+		if trackMatched && artistMatched {
+			return t.ID
+		}
+	}
+
+	return spotify.ID("")
+}
+
 func handleLogin(w http.ResponseWriter, r *http.Request) {
 	sess, _ := store.Get(r, sessionName)
 	url := auth.AuthURL(sess.ID)
-	http.Redirect(w, r, url, 301)
+	http.Redirect(w, r, url, 302)
 }
 
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	sess, _ := store.Get(r, sessionName)
 	sess.Options.MaxAge = -1
-	sess.Save(r, w)
-	http.Redirect(w, r, "/", 301)
+	sess.Values["accessToken"] = ""
+	err := sess.Save(r, w)
+	if err != nil {
+		http.Error(w, "Er gaat iets gruwelijk mis en het is mijn schuld.", http.StatusInternalServerError)
+	}
+	http.Redirect(w, r, "/", 302)
 }
 
 func handleAuth(w http.ResponseWriter, r *http.Request) {
@@ -200,5 +261,5 @@ func handleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// redirect back to home
-	http.Redirect(w, r, "/", 301)
+	http.Redirect(w, r, "/", 302)
 }

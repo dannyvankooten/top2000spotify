@@ -6,11 +6,11 @@
         <title>Top 2000 Spotify playlist</title>
         <meta name="description" content="Maak een Spotify playlist van jouw Top 2000 lijstje. Of die van iemand anders.">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="manifest" href="site.webmanifest">
+        <link rel="manifest" href="/static/site.webmanifest">
         <!-- Place favicon.ico in the root directory -->
 		
-        <link rel="stylesheet" href="/css/normalize.css">
-        <link rel="stylesheet" href="/css/main.css">
+        <link rel="stylesheet" href="/static/css/normalize.css">
+        <link rel="stylesheet" href="/static/css/main.css">
     </head>
     <body>
         <!--[if lte IE 9]>
@@ -40,11 +40,11 @@
 	            	m('div.app-header', [
 	            		m("img", { 
 	            			height: 40,
-		            		src: url( "img/top2000-logo.png" ),
+		            		src: url( "static/img/top2000-logo.png" ),
 		            	}),
 		            	m("img", { 
 		            		height: 40,
-		            		src: url( "img/spotify-logo.png" ),
+		            		src: url( "static/img/spotify-logo.png" ),
 		            	}),
 	            	]),
 	            	m("h3", "Maak een Spotify playlist van jouw Top 2000 lijstje."),
@@ -144,9 +144,5 @@
 
 	    m.mount(root, Component);
 	    </script>
-
-	    <!--
-	    	<iframe src="https://open.spotify.com/embed?uri=spotify%3Auser%3Aspotify%3Aplaylist%3A2PXdUld4Ueio2pHcB6sM8j" width="300" height="380" frameborder="0" allowtransparency="true"></iframe>
-	    -->
 </body>
 </html>

@@ -203,6 +203,12 @@ a:focus {
         margin: 10px;
         padding: 20px;
     }
+
+    .app-header img{
+        width: 48%;
+        height: auto;
+        margin: 0 1%;
+    }
 }
 
 
