@@ -55,12 +55,11 @@
 				    	m("div.medium-margin", [
 				    		state.user ? 
 				    		 m("span", [ "Verbonden met de Spotify van ", m("strong", state.user.name ), "." ])
-				    		 : m("a", { href: "/login" }, "Login with Spotify")
+				    		 : m("a", { href: "/login" }, "Login met je Spotify account")
 				    	]),
 				    	m("div.medium-margin", [
 				    		m("input", {
 				    			placeholder: "Link naar je Top 2000 lijstje...",
-				    			required: true,
 				    			value: state.url,
 				    			onchange: handleInputChange,
 				    			oninput: handleInputChange,
@@ -103,6 +102,19 @@
 
 	    function handleSubmit(e) {
 	    	e.preventDefault();
+
+	    	if( ! state.user ) {
+	    		state.error = "Log eerst in met je Spotify account.";
+	    		return;
+	    	}
+
+	    	if( ! state.url ) {
+	    		state.error = "Dat lijstje lijkt nergens op... Of dat lijkt nergens op een lijstje.";
+	    		return;
+	    	}
+
+
+
 	    	state.error = "";
 	    	state.loading = true;
 
@@ -113,7 +125,7 @@
 		    	withCredentials: true,
 		    }).then(function(data) {
 		    	state.loading = false;
-		    	
+
 		    	if(data.error) {
 		    		state.error = data.error;
 		    	} else {
