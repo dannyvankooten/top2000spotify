@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gorilla/sessions"
@@ -124,7 +125,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	// write lijstje URL to file so we can do stuff later
 	f, err := os.OpenFile("lijstjes.dat", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err == nil {
-		f.WriteString(data.URL + "\n")
+		f.WriteString(time.Now().Format("2006-01-02 15:04:05") + " " + data.URL + "\n")
 	}
 	f.Close()
 
