@@ -50,35 +50,40 @@
 	            	m("h3", "Maak een Spotify playlist van jouw Top 2000 lijstje."),
 			    	m("form", {
 			    		onsubmit: handleSubmit,
-			    	}, [
-				    	m("div.medium-margin", [
-				    		state.user ? 
-				    		 m("span", [ "Verbonden met de Spotify van ", m("strong", state.user.name ), "." ])
-				    		 : m("a", { href: url("/login") }, "Login met je Spotify account")
-				    	]),
-				    	m("div.medium-margin", [
-				    		m("input", {
-				    			placeholder: "Link naar je Top 2000 lijstje...",
-				    			value: state.url,
-				    			onchange: handleInputChange,
-				    			oninput: handleInputChange,
-				    		})
-				    	]),
-				    	state.error ? m("div", {
-				    		class: "medium-margin error",
-				    	}, state.error ) : "",
-				    	m("div.medium-margin", [
-				    		state.playlist ? 
-				    		m('iframe', {
-				    			src: "https://open.spotify.com/embed/user/"+ state.user.name + "/playlist/" + state.playlist,
-				    			width: document.querySelector('.app-header').clientWidth,
-				    			height: 380,
-				    			frameborder: "0",
-				    			allowtransparency: true,
-				    		})
-				    		: m("button", { disabled: state.loading }, state.loading ? "Bezig.. wacht ff" : "Let's go")
-				    	]), 
-			    	]), // end form
+			    	}, 
+			    		state.user ? 
+		    			[
+		    				m('div.medium-margin', [ "Verbonden met Spotify als ", m("strong", state.user.name), ". ", m("a", { href: "/logout" }, "Ben jij dit niet?") ]),
+			    			m("div.medium-margin", [
+					    		m("input", {
+					    			placeholder: "Link naar je Top 2000 lijstje...",
+					    			value: state.url,
+					    			onchange: handleInputChange,
+					    			oninput: handleInputChange,
+					    		})
+					    	]),
+					    	state.error ? m("div", {
+					    		class: "medium-margin error",
+					    	}, state.error ) : "",
+					    	m("div.medium-margin", [
+					    		state.playlist ? 
+					    		m('iframe', {
+					    			src: "https://open.spotify.com/embed/user/"+ state.user.name + "/playlist/" + state.playlist,
+					    			width: document.querySelector('.app-header').clientWidth,
+					    			height: 380,
+					    			frameborder: "0",
+					    			allowtransparency: true,
+					    		})
+					    		: m("button", { disabled: state.loading }, state.loading ? "Bezig.. wacht ff" : "Let's go")
+					    	])
+				    	]
+		    		: 
+		    			[
+							m("div.medium-margin", [
+					    		m("a.button.spotify-button", { href: url("/login") }, "Log in met je Spotify account")
+					    	])
+		    			]
+				    ), // end form
 			    	m('div.app-footer', [
 			    		m("p.muted", [ "Nog geen lijstje? ", m("a", { href: "https://stemmen.top2000.nl/" }, "Stemmen op de Top 2000 doe je hier" ), "." ])
 			    	])

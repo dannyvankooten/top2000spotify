@@ -106,8 +106,14 @@ body {
 
 input {
     width: 100%;
-    padding: 6px;
+    padding: 10px;
     display: inline-block;
+    border: 2px solid #cdcdcd;
+    outline: 0;
+}
+
+input:focus{
+    border-color: #cd1027;
 }
 
 button,
@@ -120,12 +126,17 @@ input[type="button"],
     padding: 10px;
     text-transform: uppercase;
     width: 100%;
+    display: inline-block;
+    text-align: center;
 }
 
 button:hover,
-button:focus {
-    background: red;
+button:focus,
+a.button:hover,
+a.button:focus {
+    background-color: red;
     cursor: pointer;
+    text-decoration: none;
 }
 
 h1, h2, h3, h4 {
@@ -135,6 +146,12 @@ h1, h2, h3, h4 {
 a{ 
     color: #d7182a;
     font-weight: bold;
+    text-decoration: none;
+}
+
+a:hover,
+a:focus {
+    text-decoration: underline;
 }
 
 .app-container {
@@ -171,6 +188,14 @@ a{
 .muted {
     font-size: 0.8em;
     color: #AAA;
+}
+
+.spotify-button {
+    padding: 16px 16px 16px 56px;
+    background-image: url("../img/spotify-icon.png");
+    background-size: 32px;
+    background-repeat: no-repeat;
+    background-position: 16px  center;
 }
 
 @media( max-width: 580px ) {

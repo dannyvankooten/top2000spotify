@@ -26,6 +26,7 @@ func main() {
 	auth.SetAuthInfo(os.Getenv("SPOTIFY_ID"), os.Getenv("SPOTIFY_SECRET"))
 
 	http.HandleFunc("/login", handleLogin)
+	http.HandleFunc("/logout", handleLogout)
 	http.HandleFunc("/callback", handleAuth)
 	http.HandleFunc("/api/me", handlePing)
 	http.HandleFunc("/api/create-playlist", handleCreatePlaylist)
@@ -170,6 +171,13 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	sess, _ := store.Get(r, sessionName)
 	url := auth.AuthURL(sess.ID)
 	http.Redirect(w, r, url, 301)
+}
+
+func handleLogout(w http.ResponseWriter, r *http.Request) {
+	sess, _ := store.Get(r, sessionName)
+	sess.Options.MaxAge = -1
+	sess.Save(r, w)
+	http.Redirect(w, r, "/", 301)
 }
 
 func handleAuth(w http.ResponseWriter, r *http.Request) {
