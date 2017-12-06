@@ -173,6 +173,13 @@ a{
     color: #AAA;
 }
 
+@media( max-width: 580px ) {
+    .app-container{
+        margin: 10px;
+        padding: 20px;
+    }
+}
+
 
 /* ==========================================================================
    Helper classes

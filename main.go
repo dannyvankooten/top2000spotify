@@ -61,7 +61,8 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	client := getAuthenticatedClient(r)
 	user, err := client.CurrentUser()
 	if err != nil {
-		log.Fatal(err)
+		w.Write([]byte("false"))
+		return
 	}
 
 	imageURL := ""
@@ -111,11 +112,17 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	// get client
 	client := getAuthenticatedClient(r)
 	if err != nil {
-		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Je Spotify account wil niet echt meewerken...",
+		})
+		return
 	}
 	user, err := client.CurrentUser()
 	if err != nil {
-		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Je Spotify account wil niet echt meewerken...",
+		})
+		return
 	}
 
 	// create new playlist
@@ -123,7 +130,10 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	name = strings.TrimPrefix(name, "De NPO Radio 2 ") + " (2017)"
 	playlist, err := client.CreatePlaylistForUser(user.ID, name, true)
 	if err != nil {
-		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Het lukt niet echt om de playlist te maken.",
+		})
+		return
 	}
 
 	// find all track id's
@@ -134,7 +144,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 
 		result, err := client.Search(artist+" "+title, spotify.SearchTypeTrack)
 		if err != nil {
-			log.Fatal(err)
+			return // rate limited?
 		}
 
 		// lowercase track title
@@ -166,7 +176,9 @@ func handleAuth(w http.ResponseWriter, r *http.Request) {
 
 	token, err := auth.Token(sess.ID, r)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Ik heb toestemming nodig", http.StatusUnauthorized)
+		w.Write([]byte("Ik heb wel toestemming nodig om de playlist in je Spotify account te maken..."))
+		return
 	}
 
 	// save token
@@ -174,7 +186,8 @@ func handleAuth(w http.ResponseWriter, r *http.Request) {
 	sess.Values["accessToken"] = token.AccessToken
 	err = sess.Save(r, w)
 	if err != nil {
-		log.Fatal(err)
+		http.Error(w, "Er gaat iets gruwelijk mis en het is mijn schuld.", http.StatusInternalServerError)
+		return
 	}
 
 	// redirect back to home

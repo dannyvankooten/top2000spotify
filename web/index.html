@@ -32,6 +32,7 @@
 	        url: "",
 	        playlist: "",
 	        error: "",
+	        loading: false,
 	    }
 
 	    var Component = {
@@ -53,7 +54,7 @@
 			    	}, [
 				    	m("div.medium-margin", [
 				    		state.user ? 
-				    		 m("span", [ "Verbonden met de Spotify van ", m("strong", state.user.name )])
+				    		 m("span", [ "Verbonden met de Spotify van ", m("strong", state.user.name ), "." ])
 				    		 : m("a", { href: "/login" }, "Login with Spotify")
 				    	]),
 				    	m("div.medium-margin", [
@@ -72,20 +73,16 @@
 				    		state.playlist ? 
 				    		m('iframe', {
 				    			src: "https://open.spotify.com/embed/user/"+ state.user.name + "/playlist/" + state.playlist,
-				    			width: 520,
+				    			width: document.querySelector('.app-header').clientWidth,
 				    			height: 380,
 				    			frameborder: "0",
 				    			allowtransparency: true,
 				    		})
-				    		: m("button", "Let's go")
+				    		: m("button", { disabled: state.loading }, state.loading ? "Bezig.. wacht ff" : "Let's go")
 				    	]), 
 			    	]), // end form
 			    	m('div.app-footer', [
-			    		m("p.muted", [
-			    			"Nog geen lijstje? ",
-			    			m("a", { href: "https://stemmen.top2000.nl/" }, "Stemmen op de Top 2000 doe je hier" ),
-			    			".",
-			    		])
+			    		m("p.muted", [ "Nog geen lijstje? ", m("a", { href: "https://stemmen.top2000.nl/" }, "Stemmen op de Top 2000 doe je hier" ), "." ])
 			    	])
 			    ])
 	        }
@@ -107,6 +104,7 @@
 	    function handleSubmit(e) {
 	    	e.preventDefault();
 	    	state.error = "";
+	    	state.loading = true;
 
 	    	m.request({
 		    	method: "POST",
@@ -114,6 +112,8 @@
 		    	data: { url: state.url },
 		    	withCredentials: true,
 		    }).then(function(data) {
+		    	state.loading = false;
+		    	
 		    	if(data.error) {
 		    		state.error = data.error;
 		    	} else {
