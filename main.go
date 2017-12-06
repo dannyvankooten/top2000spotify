@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,9 +12,11 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/xrash/smetrics"
 	"github.com/zmb3/spotify"
+	"golang.org/x/oauth2"
 )
 
 const redirectURI = "http://localhost:8080/callback"
+const sessionName = "t2s"
 
 var (
 	auth  = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserReadPrivate, spotify.ScopePlaylistModifyPublic)
@@ -33,68 +34,92 @@ func main() {
 	http.HandleFunc("/login", handleLogin)
 	http.HandleFunc("/callback", handleAuth)
 	http.HandleFunc("/api/me", handlePing)
-	http.HandleFunc("/api/test-list", handleTestList)
 	http.HandleFunc("/api/create-playlist", handleCreatePlaylist)
 	http.Handle("/", http.FileServer(http.Dir("./web")))
 	http.ListenAndServe(":8080", nil)
 }
 
-func handlePing(w http.ResponseWriter, r *http.Request) {
-	sess, _ := store.Get(r, "t2s")
-
-	w.Header().Set("Content-Type", "application/json")
-
-	if _, ok := sess.Values["token"]; ok && !sess.IsNew && sess.Values["token"].(string) != "" {
-		w.Write([]byte("true"))
-	} else {
-		w.Write([]byte("false"))
+func getAuthenticatedClient(r *http.Request) spotify.Client {
+	sess, _ := store.Get(r, sessionName)
+	token := &oauth2.Token{
+		AccessToken: sess.Values["accessToken"].(string),
 	}
+	client := auth.NewClient(token)
+	return client
 }
 
-func handleTestList(w http.ResponseWriter, r *http.Request) {
-	doc, err := goquery.NewDocument(r.FormValue("url"))
+func handlePing(w http.ResponseWriter, r *http.Request) {
+	sess, _ := store.Get(r, sessionName)
+
+	w.Header().Set("Content-Type", "application/json")
+	if _, ok := sess.Values["accessToken"]; !ok || sess.Values["accessToken"].(string) == "" {
+		w.Write([]byte("false"))
+		return
+	}
+
+	// get current user
+	client := getAuthenticatedClient(r)
+	user, err := client.CurrentUser()
 	if err != nil {
-		// not even a webpage
 		log.Fatal(err)
 	}
 
-	if doc.Find(".socials-like h1").Length() == 0 || doc.Find(".yourlist li").Length() == 0 {
-		// not a playlist
-		// TODO: Return error
+	imageURL := ""
+	if len(user.Images) > 0 {
+		imageURL = user.Images[0].URL
 	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"name":  user.ID,
+		"image": imageURL,
+	})
 }
 
 func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
 	var data struct {
 		URL string `json:"url"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&data)
-
-	sess, _ := store.Get(r, "t2s")
 	if data.URL == "" {
-		log.Fatal("Did not supply a proper URL")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Dat lijstje lijkt nergens op! (Of dat lijkt nergens op 'n lijstje, sorry..)",
+		})
+		return
 	}
 
 	doc, err := goquery.NewDocument(data.URL)
 	if err != nil {
-		log.Fatal(err)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Dat lijstje lijkt nergens op! (Of dat lijkt nergens op 'n lijstje, sorry..)",
+		})
+		return
 	}
 
 	// TODO: Validate playlist (again?)
+	heading := doc.Find(".socials-like h1")
+	listItems := doc.Find(".yourlist li")
 
-	token, err := auth.Exchange(sess.Values["token"].(string))
+	if heading.Length() == 0 || listItems.Length() == 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Dat lijstje lijkt nergens op! (Of dat lijkt nergens op 'n lijstje, sorry..)",
+		})
+		return
+	}
+
+	// get client
+	client := getAuthenticatedClient(r)
 	if err != nil {
 		log.Fatal(err)
 	}
-	client := auth.NewClient(token)
 	user, err := client.CurrentUser()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// create new playlist
-	name := doc.Find(".socials-like h1").Text()
+	name := heading.Text()
 	name = strings.TrimPrefix(name, "De NPO Radio 2 ") + " (2017)"
 	playlist, err := client.CreatePlaylistForUser(user.ID, name, true)
 	if err != nil {
@@ -103,9 +128,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 
 	// find all track id's
 	tracks := make([]spotify.ID, 0)
-
-	doc.Find(".yourlist li").Each(func(i int, s *goquery.Selection) {
-		// For each item found, get the band and title
+	listItems.Each(func(i int, s *goquery.Selection) {
 		artist := s.Find("h2").Text()
 		title := s.Find("h3").Text()
 
@@ -114,11 +137,11 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 
+		// lowercase track title
+		title = strings.ToLower(title)
 		for _, track := range result.Tracks.Tracks {
-			if strings.HasPrefix(track.Name, title) || smetrics.WagnerFischer(title, track.Name, 1, 1, 2) < 5 {
-				fmt.Printf("%s - %s\n", artist, title)
-				fmt.Printf(track.Artists[0].Name + " - " + track.Name + "\n")
-
+			track.Name = strings.ToLower(track.Name)
+			if (strings.HasPrefix(track.Name, title) && !strings.Contains(track.Name, "instrumental")) || smetrics.WagnerFischer(title, track.Name, 1, 1, 2) < 5 {
 				tracks = append(tracks, track.ID)
 				break
 			}
@@ -127,38 +150,29 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 
 	client.AddTracksToPlaylist(user.ID, playlist.ID, tracks...)
 
+	json.NewEncoder(w).Encode(map[string]string{
+		"playlist": playlist.ID.String(),
+	})
 }
 
 func handleLogin(w http.ResponseWriter, r *http.Request) {
-	sess, _ := store.Get(r, "t2s")
+	sess, _ := store.Get(r, sessionName)
 	url := auth.AuthURL(sess.ID)
 	http.Redirect(w, r, url, 301)
 }
 
 func handleAuth(w http.ResponseWriter, r *http.Request) {
-	sess, _ := store.Get(r, "t2s")
+	sess, _ := store.Get(r, sessionName)
 
-	values := r.URL.Query()
-	if e := values.Get("error"); e != "" {
-		log.Fatal("spotify: auth failed - " + e)
-	}
-
-	// get code
-	code := values.Get("code")
-	if code == "" {
-		http.NotFound(w, r)
-		return
-	}
-
-	// check state
-	if st := r.FormValue("state"); st != sess.ID {
-		http.NotFound(w, r)
-		return
+	token, err := auth.Token(sess.ID, r)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// save token
-	sess.Values["token"] = code
-	err := sess.Save(r, w)
+	//sess.Values["name"] = user.Name
+	sess.Values["accessToken"] = token.AccessToken
+	err = sess.Save(r, w)
 	if err != nil {
 		log.Fatal(err)
 	}

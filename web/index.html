@@ -18,37 +18,75 @@
         <!--[if lte IE 9]>
             <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
         <![endif]-->
+
+        <div class="container">
+        	<div id="root"></div>
+        </div>
 	
 		<script src="//unpkg.com/mithril/mithril.js"></script>
 	    <script>
-	    var root = document.body
+	    var root = document.getElementById('root');
 
 	    var state = {
-	        authorized: 0,
+	        user: false,
 	        url: "",
+	        playlist: "",
+	        error: "",
 	    }
 
 	    var Component = {
 	        view: function() {
-	            return m("div", [
+	            return m("div.app-container", [
+	            	m('div.app-header', [
+	            		m("img", { 
+	            			height: 40,
+		            		src: "img/top2000-logo.png",
+		            	}),
+		            	m("img", { 
+		            		height: 40,
+		            		src: "img/spotify-logo.png",
+		            	}),
+	            	]),
+	            	m("h3", "Maak een Spotify playlist van jouw Top 2000 lijstje."),
 			    	m("form", {
 			    		onsubmit: handleSubmit,
 			    	}, [
-				    	m("div", [
-				    		state.authorized ? "" : m("a", { href: "/login" }, "Login with Spotify")
+				    	m("div.medium-margin", [
+				    		state.user ? 
+				    		 m("span", [ "Verbonden met de Spotify van ", m("strong", state.user.name )])
+				    		 : m("a", { href: "/login" }, "Login with Spotify")
 				    	]),
-				    	m("div", [
+				    	m("div.medium-margin", [
 				    		m("input", {
 				    			placeholder: "Link naar je Top 2000 lijstje...",
 				    			required: true,
 				    			value: state.url,
-				    			onchange: function(e) { state.url = e.target.value; }
+				    			onchange: handleInputChange,
+				    			oninput: handleInputChange,
 				    		})
 				    	]),
-				    	m("div", [
-				    		m("button", "Let's go")
-				    	])
-			    	]) // end form
+				    	state.error ? m("div", {
+				    		class: "medium-margin error",
+				    	}, state.error ) : "",
+				    	m("div.medium-margin", [
+				    		state.playlist ? 
+				    		m('iframe', {
+				    			src: "https://open.spotify.com/embed/user/"+ state.user.name + "/playlist/" + state.playlist,
+				    			width: 520,
+				    			height: 380,
+				    			frameborder: "0",
+				    			allowtransparency: true,
+				    		})
+				    		: m("button", "Let's go")
+				    	]), 
+			    	]), // end form
+			    	m('div.app-footer', [
+			    		m("p.muted", [
+			    			"Nog geen lijstje? ",
+			    			m("a", { href: "https://stemmen.top2000.nl/" }, "Stemmen op de Top 2000 doe je hier" ),
+			    			".",
+			    		])
+			    	])
 			    ])
 	        }
 	    }
@@ -58,11 +96,17 @@
 	    	url: "/api/me",
 	    	withCredentials: true,
 	    }).then(function(data) {
-	    	state.authorized = data;
+	    	state.user = data;
 	    })
+
+	    function handleInputChange(e) {
+	    	state.error = "";
+			state.url = e.target.value; 
+	    }
 
 	    function handleSubmit(e) {
 	    	e.preventDefault();
+	    	state.error = "";
 
 	    	m.request({
 		    	method: "POST",
@@ -70,13 +114,15 @@
 		    	data: { url: state.url },
 		    	withCredentials: true,
 		    }).then(function(data) {
-		    	console.log(data);
+		    	if(data.error) {
+		    		state.error = data.error;
+		    	} else {
+		    		state.playlist = data.playlist;
+		    	}
 		    })
 	    }
 
 	    m.mount(root, Component);
-
-
 	    </script>
 
 	    <!--

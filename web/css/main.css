@@ -82,9 +82,11 @@ textarea {
     resize: vertical;
 }
 
-/* ==========================================================================
-   Browser Upgrade Prompt
-   ========================================================================== */
+
+body { 
+    font-family: Arial, sans-serif;
+    background: #cd1027; 
+}
 
 .browserupgrade {
     margin: 0.2em 0;
@@ -93,34 +95,113 @@ textarea {
     padding: 0.2em 0;
 }
 
-/* ==========================================================================
-   Author's custom styles
-   ========================================================================== */
+.container {
+    margin: 0 auto;
+    max-width: 600px;
+}
 
+* {
+    box-sizing: border-box;
+}
 
+input {
+    width: 100%;
+    padding: 6px;
+    display: inline-block;
+}
 
+button,
+input[type="submit"],
+input[type="button"],
+.button {
+    background: #cd1027;
+    color: #fff;
+    border :0;
+    padding: 10px;
+    text-transform: uppercase;
+    width: 100%;
+}
 
+button:hover,
+button:focus {
+    background: red;
+    cursor: pointer;
+}
 
+h1, h2, h3, h4 {
+    color: rgb(75, 75, 75);
+}
 
+a{ 
+    color: #d7182a;
+    font-weight: bold;
+}
 
+.app-container {
+    background: white;
+    padding: 40px;
+    margin: 40px 0;
+    border-radius: 6px;
+}
 
+.app-header{
+    margin-top: 0;
+}
 
+.app-header img{
+    margin-right: 20px;
+}
 
+.app-footer{
+    margin-bottom: 0;
+}
 
+.app-footer p {
+    margin: 0;
+}
 
+.error{
+    color: red;
+}
 
+.logos img {
+    margin-right: 10px;
+}
 
-
+.muted {
+    font-size: 0.8em;
+    color: #AAA;
+}
 
 
 /* ==========================================================================
    Helper classes
    ========================================================================== */
 
+.tiny-margin{
+    margin-top: 5px; 
+    margin-bottom: 5px;
+}
+
+.small-margin{
+    margin-top: 10px; 
+    margin-bottom: 10px;
+}
+
+.medium-margin{
+    margin-top: 20px; 
+    margin-bottom: 20px;
+}
+
+.big-margin{
+    margin-top: 40px; 
+    margin-bottom: 40px;
+}
+
+
 /*
  * Hide visually and from screen readers
  */
-
 .hidden {
     display: none !important;
 }
@@ -133,7 +214,6 @@ textarea {
  *    causes content to wrap 1 word per line:
  *    https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
  */
-
 .visuallyhidden {
     border: 0;
     clip: rect(0 0 0 0);
@@ -153,7 +233,6 @@ textarea {
  * to be focusable when navigated to via the keyboard:
  * https://www.drupal.org/node/897638
  */
-
 .visuallyhidden.focusable:active,
 .visuallyhidden.focusable:focus {
     clip: auto;
@@ -197,29 +276,12 @@ textarea {
     clear: both;
 }
 
-/* ==========================================================================
-   EXAMPLE Media Queries for Responsive Design.
-   These examples override the primary ('mobile first') styles.
-   Modify as content requires.
-   ========================================================================== */
-
-@media only screen and (min-width: 35em) {
-    /* Style adjustments for viewports that meet the condition */
-}
-
-@media print,
-       (-webkit-min-device-pixel-ratio: 1.25),
-       (min-resolution: 1.25dppx),
-       (min-resolution: 120dpi) {
-    /* Style adjustments for high resolution devices */
-}
 
 /* ==========================================================================
    Print styles.
    Inlined to avoid the additional HTTP request:
    http://www.phpied.com/delay-loading-your-print-css/
    ========================================================================== */
-
 @media print {
     *,
     *:before,
