@@ -2,3 +2,4 @@
 top2000spotify
 node_modules
 *.dat
+*.log
