@@ -17,7 +17,13 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const sessionName = "t2s"
+const (
+	sessionName    = "t2s"
+	errInvalidList = "Dat lijstje lijkt nergens op. Of dat lijkt nergens op 'n lijstje."
+	errSpotifyConn = "Je Spotify account werkt niet echt mee."
+	errSpotifyAuth = "Zonder toestemming kan ik de playlist niet voor je maken."
+	errInternal    = "Er gaat iets mis en het is mijn schuld. :("
+)
 
 var (
 	redirectURI = os.Getenv("APP_URL") + "/callback"
@@ -90,23 +96,26 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 
 	var data struct {
 		URL string `json:"url"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&data)
-	if data.URL == "" {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Dat lijstje lijkt nergens op! Of dat lijkt nergens op 'n lijstje..",
+
+	w.Header().Set("Content-Type", "application/json")
+	je := json.NewEncoder(w)
+
+	if err != nil || data.URL == "" {
+		je.Encode(map[string]interface{}{
+			"error": errInvalidList,
 		})
 		return
 	}
 
 	doc, err := goquery.NewDocument(data.URL)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Dat lijstje lijkt nergens op! Of dat lijkt nergens op 'n lijstje..",
+		je.Encode(map[string]interface{}{
+			"error": errInvalidList,
 		})
 		return
 	}
@@ -116,8 +125,8 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	listItems := doc.Find(".yourlist li")
 
 	if heading.Length() == 0 || listItems.Length() == 0 {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Dat lijstje lijkt nergens op! Of dat lijkt nergens op 'n lijstje..",
+		je.Encode(map[string]interface{}{
+			"error": errInvalidList,
 		})
 		return
 	}
@@ -132,16 +141,16 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	// get client
 	client, err := getAuthenticatedClient(r)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Je Spotify account wil niet echt meewerken...",
+		je.Encode(map[string]interface{}{
+			"error": errSpotifyConn,
 		})
 		return
 	}
 	user, err := client.CurrentUser()
 	if err != nil {
 		log.Println(err)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Je Spotify account wil niet echt meewerken...",
+		je.Encode(map[string]interface{}{
+			"error": errSpotifyConn,
 		})
 		return
 	}
@@ -152,8 +161,8 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	playlist, err := client.CreatePlaylistForUser(user.ID, name, true)
 	if err != nil {
 		log.Println(err)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"error": "Het lukt niet echt om de playlist te maken.",
+		je.Encode(map[string]interface{}{
+			"error": errSpotifyConn,
 		})
 		return
 	}
@@ -170,16 +179,23 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 			ID = searchForTrackID(client, artist, title, artist+" "+title[0:(len(title)/2)])
 		}
 
-		if ID != spotify.ID("") {
+		if ID != "" {
 			tracks = append(tracks, ID)
 		} else {
 			log.Printf("failed matching %s %s\n", artist, title)
 		}
 	})
 
-	client.AddTracksToPlaylist(user.ID, playlist.ID, tracks...)
+	_, err = client.AddTracksToPlaylist(user.ID, playlist.ID, tracks...)
+	if err != nil {
+		log.Println(err)
+		je.Encode(map[string]interface{}{
+			"error": errSpotifyConn,
+		})
+		return
+	}
 
-	json.NewEncoder(w).Encode(map[string]string{
+	je.Encode(map[string]string{
 		"playlist": playlist.ID.String(),
 	})
 }
@@ -240,8 +256,10 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 	err := sess.Save(r, w)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Er gaat iets gruwelijk mis en het is mijn schuld.", http.StatusInternalServerError)
+		http.Error(w, errInternal, http.StatusInternalServerError)
+		return
 	}
+
 	http.Redirect(w, r, "/", 302)
 }
 
@@ -251,8 +269,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request) {
 	token, err := auth.Token(sess.ID, r)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Ik heb toestemming nodig", http.StatusUnauthorized)
-		w.Write([]byte("Ik heb wel toestemming nodig om de playlist in je Spotify account te maken..."))
+		http.Error(w, errSpotifyAuth, http.StatusUnauthorized)
 		return
 	}
 
@@ -262,7 +279,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request) {
 	err = sess.Save(r, w)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "Er gaat iets gruwelijk mis en het is mijn schuld.", http.StatusInternalServerError)
+		http.Error(w, errInternal, http.StatusInternalServerError)
 		return
 	}
 
