@@ -210,11 +210,12 @@ func searchForTrackID(client spotify.Client, artist string, title string, q stri
 	title = strings.ToLower(title)
 	artist = strings.ToLower(artist)
 
+	// WagnerFischer on all tracks
 	for _, t := range result.Tracks.Tracks {
 		trackMatched := false
 		artistMatched := false
 
-		// NORMALIZE TRACK
+		// normalize track name
 		t.Name = strings.ToLower(t.Name)
 		t.Name = strings.TrimSuffix(t.Name, "remastered")
 		t.Name = strings.TrimSpace(t.Name)
@@ -227,6 +228,32 @@ func searchForTrackID(client spotify.Client, artist string, title string, q stri
 		}
 
 		// compare each track artist
+		for _, a := range t.Artists {
+			a.Name = strings.ToLower(a.Name)
+			if smetrics.WagnerFischer(artist, a.Name, 1, 1, 2) <= 5 {
+				artistMatched = true
+				break
+			}
+		}
+
+		if trackMatched && artistMatched {
+			return t.ID
+		}
+	}
+
+	// String prefix on all track names
+	for _, t := range result.Tracks.Tracks {
+		trackMatched := false
+		artistMatched := false
+
+		t.Name = strings.ToLower(t.Name)
+
+		// search for track name prefix but skip instrumental versions
+		if strings.HasPrefix(t.Name, title) && !strings.Contains(t.Name, "instrumental") {
+			trackMatched = true
+		}
+
+		// wagnerfischer on artist names
 		for _, a := range t.Artists {
 			a.Name = strings.ToLower(a.Name)
 			if smetrics.WagnerFischer(artist, a.Name, 1, 1, 2) <= 5 {
