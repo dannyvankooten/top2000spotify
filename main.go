@@ -121,8 +121,8 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate playlist
-	heading := doc.Find(".socials-like h1")
-	listItems := doc.Find(".yourlist li")
+	heading := doc.Find(".mainbar h2")
+	listItems := doc.Find(".list--share li")
 
 	if heading.Length() == 0 || listItems.Length() == 0 {
 		je.Encode(map[string]interface{}{
@@ -157,7 +157,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 
 	// create new playlist
 	name := heading.Text()
-	name = strings.TrimPrefix(name, "De NPO Radio 2 ") + " (2017)"
+	name = strings.TrimPrefix(name, "Dit is de playlist van  ") + "'s Top 2000 (2019)"
 	playlist, err := client.CreatePlaylistForUser(user.ID, name, true)
 	if err != nil {
 		log.Println(err)
@@ -170,8 +170,8 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	// find all track id's
 	tracks := make([]spotify.ID, 0)
 	listItems.Each(func(i int, s *goquery.Selection) {
-		artist := s.Find("h2").Text()
-		title := s.Find("h3").Text()
+		artist := s.Find(".song--artist").Text()
+		title := s.Find(".song--title").Text()
 
 		// lowercase track title
 		ID := searchForTrackID(client, artist, title, artist+" "+title)
