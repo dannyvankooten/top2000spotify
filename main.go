@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 	"time"
+	"regexp"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/gorilla/sessions"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/xrash/smetrics"
@@ -112,19 +112,39 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	doc, err := goquery.NewDocument(data.URL)
-	if err != nil {
+	re := regexp.MustCompile(`\/share\/(\w+)$`)
+	matches := re.FindStringSubmatch(data.URL)
+	if matches == nil || len(matches) < 1 {
 		je.Encode(map[string]interface{}{
 			"error": errInvalidList,
 		})
 		return
 	}
 
-	// Validate playlist
-	heading := doc.Find(".mainbar h2")
-	listItems := doc.Find(".list--share li")
+	id := matches[1]
+	resp, err := http.Get("https://stem-backend.npo.nl/api/form/top-2000/" + id)
+	if err != nil {
+		je.Encode(map[string]interface{}{
+			"error": errInvalidList,
+		})
+		return
+	}
+	defer resp.Body.Close()
 
-	if heading.Length() == 0 || listItems.Length() == 0 {
+	var list struct {
+		Name string `json:"name"`
+		Items []struct {
+			ID string `json:"_id"`
+			Source struct {
+				Artist string `json:"artist"`
+				Title string `json:"title"`
+				SpotifyImage string `json:"spotifyImage"`
+			} `json:"_source"`
+		} `json:"shortlist"`
+
+	}
+	err = json.NewDecoder(resp.Body).Decode(&list)
+	if err != nil {
 		je.Encode(map[string]interface{}{
 			"error": errInvalidList,
 		})
@@ -141,6 +161,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	// get client
 	client, err := getAuthenticatedClient(r)
 	if err != nil {
+		log.Println(err)
 		je.Encode(map[string]interface{}{
 			"error": errSpotifyConn,
 		})
@@ -156,8 +177,7 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create new playlist
-	name := heading.Text()
-	name = strings.TrimPrefix(name, "Dit is de playlist van  ") + "'s Top 2000 (2019)"
+	name := list.Name + "'s Top 2000 lijstje (2019)"
 	playlist, err := client.CreatePlaylistForUser(user.ID, name, true)
 	if err != nil {
 		log.Println(err)
@@ -169,22 +189,22 @@ func handleCreatePlaylist(w http.ResponseWriter, r *http.Request) {
 
 	// find all track id's
 	tracks := make([]spotify.ID, 0)
-	listItems.Each(func(i int, s *goquery.Selection) {
-		artist := s.Find(".song--artist").Text()
-		title := s.Find(".song--title").Text()
+	for _, track := range list.Items {
+		t := track.Source
 
 		// lowercase track title
-		ID := searchForTrackID(client, artist, title, artist+" "+title)
+		ID := searchForTrackID(client, t.Artist, t.Title, t.Artist+" "+t.Title)
 		if ID == "" {
-			ID = searchForTrackID(client, artist, title, artist+" "+title[0:(len(title)/2)])
+			ID = searchForTrackID(client, t.Artist, t.Title, t.Artist+" "+t.Title[0:(len(t.Title)/2)])
 		}
 
 		if ID != "" {
 			tracks = append(tracks, ID)
 		} else {
-			log.Printf("failed matching %s %s\n", artist, title)
+			log.Printf("failed matching %s %s\n", t.Artist, t.Title)
 		}
-	})
+	}
+
 
 	_, err = client.AddTracksToPlaylist(user.ID, playlist.ID, tracks...)
 	if err != nil {
